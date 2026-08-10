@@ -1,3 +1,4 @@
+import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
 import * as espree from 'espree';
 import { SourceMapGenerator, StartOfSourceMap } from 'source-map';
 
@@ -40,13 +41,16 @@ export function createCompleteSourceMap(
   source: string,
   originalSource: string | null,
   option: StartOfSourceMap,
-  originalLineOffset = 0
+  combinedSourceMap: RawSourceMap | null = null
 ) {
   const gen = new SourceMapGenerator(option);
   const lines = source.split('\n');
   const originalLines = originalSource
     ? originalSource.split('\n').length
     : lines.length;
+  // Vite already maps the <script> block; only the template-derived render
+  // code is unmapped, and that is the part worth synthesising.
+  const tracer = combinedSourceMap ? new TraceMap(combinedSourceMap) : null;
 
   lines.forEach((line, lineIndex) => {
     const tokens: Array<{ loc: { start: { line: number; column: number } } }> =
@@ -62,15 +66,15 @@ export function createCompleteSourceMap(
     }
 
     tokens.forEach((token) => {
-      // Map each generated token back to the closest original line
-      const originalLine = Math.min(
-        lineIndex + 1 + originalLineOffset,
-        originalLines
-      );
+      const generated = { line: lineIndex + 1, column: token.loc.start.column };
+      const traced = tracer ? originalPositionFor(tracer, generated) : null;
+      const originalLine =
+        traced?.line ?? Math.min(generated.line, originalLines);
+
       gen.addMapping({
         source: file,
-        original: { line: originalLine, column: 0 },
-        generated: { line: lineIndex + 1, column: token.loc.start.column },
+        original: { line: originalLine, column: traced?.column ?? 0 },
+        generated,
       });
     });
   });
