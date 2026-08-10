@@ -23,8 +23,7 @@
     "test:file": "vitest run",
     "prettier": "prettier --check .",
     "format": "prettier --write .",
-    "prepublishOnly": "pnpm run build",
-    "prepare": "husky"
+    "prepublishOnly": "pnpm run build"
   },
   "homepage": "https://github.com/iFaxity/vite-plugin-istanbul",
   "repository": {
